@@ -201,7 +201,12 @@ export const getRoomState = createServerFn({ method: "POST" })
     // İzleyenin takımı: oyuncu kendi takımının, sunucu 1. takımın sorusunu görür
     const myTeam = (players ?? []).find((p: any) => p.id === data.playerId)?.team ?? 1;
     const myQid = qidFor(myTeam, round);
-    const nextImageUrl: string | null = null;
+    let nextImageUrl: string | null = null;
+    const nextQid = qidFor(myTeam, round + 1);
+    if (nextQid && room.status === "PLAYING") {
+      const { data: nq } = await supabase.from("questions").select("image_url").eq("id", nextQid).maybeSingle();
+      nextImageUrl = nq?.image_url ?? null;
+    }
 
     if (needsQuestion && myQid) {
       const q = ((qRes.data ?? []) as any[]).find((row) => row.id === myQid);
@@ -407,9 +412,10 @@ export const submitAnswer = createServerFn({ method: "POST" })
   });
 
 export const controlRoom = createServerFn({ method: "POST" })
-  .inputValidator((data: { code: string; action: string }) => ({
+  .inputValidator((data: { code: string; action: string; expected?: number }) => ({
     code: String(data.code || "").trim().toUpperCase(),
     action: String(data.action),
+    expected: typeof data.expected === "number" ? data.expected : undefined,
   }))
   .handler(async ({ data }) => {
     const supabase = await db();
@@ -438,12 +444,19 @@ export const controlRoom = createServerFn({ method: "POST" })
     }
 
     if (data.action === "next") {
+      // Aynı soru için birden fazla "sonraki" isteği gelirse soru atlanmasın
+      if (room.status !== "PLAYING") return { ok: true };
+      if (data.expected !== undefined && data.expected !== room.current_question) return { ok: true };
       const nextIndex = room.current_question + 1;
       const totalRounds = Math.floor(questionIds.length / 2);
       if (nextIndex >= totalRounds) {
         const winner =
           room.rope_position < 0 ? "TEAM1" : room.rope_position > 0 ? "TEAM2" : "TIE";
-        await supabase.from("rooms").update({ status: "FINISHED", winner }).eq("id", room.id);
+        await supabase
+          .from("rooms")
+          .update({ status: "FINISHED", winner })
+          .eq("id", room.id)
+          .eq("current_question", room.current_question);
         return { ok: true };
       }
       await supabase
@@ -452,7 +465,8 @@ export const controlRoom = createServerFn({ method: "POST" })
           current_question: nextIndex,
           status: "PLAYING",
         })
-        .eq("id", room.id);
+        .eq("id", room.id)
+        .eq("current_question", room.current_question);
       return { ok: true };
     }
 
