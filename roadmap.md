@@ -7,3 +7,4 @@
 
 - [x] Halat görünürlüğü: halat tek parça ve temiz görünsün (engelleyen öğeler kaldırıldı)
 - [x] Soru fotoğrafını iki takımın telefon ekranında göster
+- [x] Telefon ekranında doğru/yanlış sonucu için sabit alan ayır; içerik kaymasını önle

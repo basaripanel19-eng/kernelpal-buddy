@@ -329,22 +329,24 @@ function GameView({ code, playerId }: { code: string; playerId: string }) {
               </div>
             )}
 
-            {meResult && (
-              <div className="mt-2 text-center">
-                <p
-                  className={`rounded-2xl px-4 py-2.5 text-2xl font-extrabold text-panel ${
-                    meResult.isCorrect ? "bg-team1" : "bg-destructive"
-                  }`}
-                >
-                  {meResult.isCorrect ? "DOĞRU! ✅" : "YANLIŞ! ❌"}
-                </p>
-                {!meResult.isCorrect && !data.resolved && (
-                  <p className="mt-1 text-sm font-semibold text-muted-foreground">
-                    Doğru cevabı bulana kadar deneyebilirsin.
+            <div className="mt-2 h-[6.5rem] shrink-0 text-center" aria-live="polite">
+              {meResult && (
+                <>
+                  <p
+                    className={`rounded-2xl px-4 py-2.5 text-2xl font-extrabold text-panel ${
+                      meResult.isCorrect ? "bg-team1" : "bg-destructive"
+                    }`}
+                  >
+                    {meResult.isCorrect ? "DOĞRU! ✅" : "YANLIŞ! ❌"}
                   </p>
-                )}
-              </div>
-            )}
+                  {!meResult.isCorrect && !data.resolved && (
+                    <p className="mt-1 text-sm font-semibold text-muted-foreground">
+                      Doğru cevabı bulana kadar deneyebilirsin.
+                    </p>
+                  )}
+                </>
+              )}
+            </div>
             {error && (
               <p className="mt-2 text-center text-sm font-semibold text-destructive">{error}</p>
             )}
