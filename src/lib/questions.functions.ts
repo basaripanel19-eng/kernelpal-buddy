@@ -21,6 +21,14 @@ export type QuestionSetRow = {
   questionCount: number;
 };
 
+function isSchemaCacheMiss(error: { code?: string; message?: string } | null): boolean {
+  return error?.code === "PGRST205" || error?.message?.includes("schema cache") === true;
+}
+
+async function pause(milliseconds: number) {
+  await new Promise((resolve) => setTimeout(resolve, milliseconds));
+}
+
 async function db() {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -31,13 +39,34 @@ export const listSets = createServerFn({ method: "POST" }).handler(async (): Pro
   QuestionSetRow[]
 > => {
   const supabase = await db();
-  const { data, error } = await supabase
+  let result = await supabase
     .from("question_sets")
     .select("id, title, description")
     .order("created_at", { ascending: false });
-  if (error) throw new Error(error.message);
-  const sets = data ?? [];
-  const { data: questions } = await supabase.from("questions").select("id, set_id");
+
+  // PostgREST can briefly retain the previous schema after a fresh database migration.
+  // Retry that transient state instead of turning the whole page into an error screen.
+  for (let attempt = 0; attempt < 2 && isSchemaCacheMiss(result.error); attempt += 1) {
+    await pause(250 * (attempt + 1));
+    result = await supabase
+      .from("question_sets")
+      .select("id, title, description")
+      .order("created_at", { ascending: false });
+  }
+
+  if (result.error) {
+    if (isSchemaCacheMiss(result.error)) {
+      console.error("Question sets are temporarily unavailable while the database schema refreshes.");
+      return [];
+    }
+    throw new Error(result.error.message);
+  }
+
+  const sets = result.data ?? [];
+  const { data: questions, error: questionsError } = await supabase
+    .from("questions")
+    .select("id, set_id");
+  if (questionsError && !isSchemaCacheMiss(questionsError)) throw new Error(questionsError.message);
   return sets.map((s: any) => ({
     id: s.id,
     title: s.title,
