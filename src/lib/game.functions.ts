@@ -273,15 +273,18 @@ export const getRoomState = createServerFn({ method: "POST" })
       else if (firstTeam === 2) derivedRope += STEP;
     }
     // Halat her zaman cevap geçmişinden türetilir; kayıtlı değer geride kaldıysa düzeltilir
-    if (derivedRope !== room.rope_position && room.status !== "FINISHED") {
+    if (derivedRope !== room.rope_position) {
       await supabase.from("rooms").update({ rope_position: derivedRope }).eq("id", room.id);
     }
 
     return {
       code: room.room_code,
       status: room.status as RoomStatus,
-      ropePosition: room.status === "FINISHED" ? room.rope_position : derivedRope,
-      winner: room.winner,
+      ropePosition: derivedRope,
+      winner:
+        room.status === "FINISHED"
+          ? derivedRope < 0 ? "TEAM1" : derivedRope > 0 ? "TEAM2" : "TIE"
+          : room.winner,
       players: (players ?? []).map((p: any) => ({
         id: p.id,
         name: p.name,
