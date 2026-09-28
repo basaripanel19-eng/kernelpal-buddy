@@ -226,6 +226,7 @@ function GameView({ code, playerId }: { code: string; playerId: string }) {
   return (
     <Shell full>
       {countdown}
+      <PreloadImage src={data.nextImageUrl} />
       <div className="mx-auto flex w-full max-w-3xl shrink-0 items-center justify-between gap-3">
         <div className={`rounded-full ${teamColor} px-4 py-1.5 text-sm font-bold text-panel`}>
           {teamLabel}
@@ -248,11 +249,7 @@ function GameView({ code, playerId }: { code: string; playerId: string }) {
 
             {q.imageUrl && (
               <div className="mt-3 flex min-h-[7rem] w-full flex-1 items-center justify-center overflow-hidden rounded-2xl border-2 border-border bg-panel shadow-[var(--shadow-panel)]">
-                <img
-                  src={q.imageUrl}
-                  alt="Soru görseli"
-                  className="h-full w-full object-contain"
-                />
+                <QuestionImage key={q.imageUrl} src={q.imageUrl} />
               </div>
             )}
           </div>
@@ -356,4 +353,35 @@ function GameView({ code, playerId }: { code: string; playerId: string }) {
       )}
     </Shell>
   );
+}
+
+function QuestionImage({ src }: { src: string }) {
+  const [attempt, setAttempt] = useState(0);
+  const [failed, setFailed] = useState(false);
+  if (failed) {
+    return <p className="p-4 text-sm font-semibold text-muted-foreground">Fotoğraf yüklenemedi</p>;
+  }
+  return (
+    <img
+      src={attempt ? `${src}${src.includes("?") ? "&" : "?"}r=${attempt}` : src}
+      alt="Soru görseli"
+      loading="eager"
+      decoding="async"
+      className="max-h-full w-full object-contain"
+      style={{ maxHeight: "40vh" }}
+      onError={() => {
+        if (attempt < 3) setTimeout(() => setAttempt((a) => a + 1), 500);
+        else setFailed(true);
+      }}
+    />
+  );
+}
+
+function PreloadImage({ src }: { src: string | null }) {
+  useEffect(() => {
+    if (!src) return;
+    const img = new Image();
+    img.src = src;
+  }, [src]);
+  return null;
 }

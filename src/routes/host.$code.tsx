@@ -87,14 +87,24 @@ function HostScreen() {
   const elapsed = usePlayTimer(status);
   const countdown = useStartCountdown(status, q?.index);
 
-  // Doğru cevap verildiğinde sıradaki soruya geç
+  // Doğru cevap verildiğinde sıradaki soruya geç (her soru için yalnızca bir kez)
+  const advancedFor = useRef<number | null>(null);
   useEffect(() => {
-    if (status !== "PLAYING" || !resolved) return undefined;
+    if (status !== "PLAYING" || !resolved || !qIndex) return undefined;
+    if (advancedFor.current === qIndex) return undefined;
+    advancedFor.current = qIndex;
     const id = setTimeout(() => {
-      void control({ data: { code, action: "next" } }).then(() => refetch());
-    }, 50);
+      void control({ data: { code, action: "next", expected: qIndex - 1 } })
+        .catch(() => {
+          advancedFor.current = null;
+        })
+        .then(() => refetch());
+    }, 600);
     return () => clearTimeout(id);
   }, [status, resolved, qIndex, code, control, refetch]);
+  useEffect(() => {
+    if (status !== "PLAYING") advancedFor.current = null;
+  }, [status]);
 
   useEffect(() => {
     if (!data) return;
